@@ -1,0 +1,39 @@
+<!doctype html>
+<title>Synth</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="synth.css">
+<script src="../drag-knob/script.js" type="module"></script>
+<script src=synth.js type=module></script>
+
+<aside id="keyboard"></aside>
+<form>
+    <fieldset>
+        <legend>Wave</legend>
+        <discrete-knob name="waveform" list='["Custom","Sine","Sawtooth","Square","Triangle"]' title="Waveform"></discrete-knob>
+        <continuous-knob name="volume" value=80 unit="%" title="Volume"></continuous-knob>
+        <continuous-knob name="time-scale" min=0 max=2 value=1 unit="s" title="100% Time" class="time-scale"></continuous-knob>
+    </fieldset>
+    <fieldset>
+        <legend>Detuned</legend>
+        <continuous-knob name="unison-detune-1" min=-25 max=25 value=0 unit="c" title="1"></continuous-knob>
+        <continuous-knob name="unison-detune-2" min=-25 max=25 value=0 unit="c" title="2"></continuous-knob>
+    </fieldset>
+    <fieldset>
+        <legend>Delay</legend>
+        <continuous-knob name="delay-time" min=0 max=1 value=0.5 unit="s" title="Time"></continuous-knob>
+        <continuous-knob name="delay-feedback" max=100 value=50 unit="%" title="Feedback"></continuous-knob>
+    </fieldset>
+    <fieldset>
+        <legend>Envelope</legend>
+        <continuous-knob name="envelope-a" max=100 value=10 unit="%" title="Attack" class="time-scale"></continuous-knob>
+        <continuous-knob name="envelope-d" max=100 value=20 unit="%" title="Decay" class="time-scale"></continuous-knob>
+        <continuous-knob name="envelope-s" max=100 value=50 unit="%" title="Sustain"></continuous-knob>
+        <continuous-knob name="envelope-r" max=100 value=50 unit="%" title="Release" class="time-scale"></continuous-knob>
+    </fieldset>
+    <fieldset>
+        <legend>LFO for pitch (Vibrato)</legend>
+        <continuous-knob name="vibrato-amount" min=0 max=5 value=1 title="Amount"></continuous-knob>
+        <continuous-knob name="vibrato-speed" min=0 max=30 value=10 title="Speed"></continuous-knob>
+    </fieldset>
+</form>
