@@ -1,5 +1,5 @@
 import {A,E,O,Q} from '../AEOQ.mjs';
-import {PointerInteraction} from '../pointer-interaction/script.js';
+import PointerInteraction from '../pointer-interaction/script.js';
 
 const audioContext = new AudioContext();
 let Knobs = new O([...new FormData(Q('form'))].map(([n, v]) => [n, isNaN(parseFloat(v)) ? v : parseFloat(v)]));
