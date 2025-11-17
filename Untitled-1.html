@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio Synthesizer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+        select { width: 100%; padding: 5px; }
+        .keyboard { display: flex; justify-content: center; gap: 2px; }
+        .key { width: 40px; height: 150px; background: white; border: 1px solid #ccc; display: flex; align-items: flex-end; justify-content: center; font-size: 12px; cursor: pointer; }
+        .key.active { background: #4CAF50; color: white; }
+        .key.black { background: #333; color: white; width: 30px; height: 100px; margin: 0 -15px; z-index: 1; }
+    </style>
+</head>
+<body>
+    <h1>Simple Web Audio Synthesizer</h1>
+    <form class="controls">
+        <div>
+            <label>Waveform:</label>
+            <select name="waveform">
+                <option value="sine">Sine</option>
+                <option value="square">Square</option>
+                <option value="sawtooth">Sawtooth</option>
+                <option value="triangle">Triangle</option>
+            </select>
+        </div>
+        <div>
+            <label>Attack (ms):</label>
+            <input type="range" name="attack" min="0" max="2000" value="10">
+            <span name="attackVal">10</span>
+        </div>
+        <div>
+            <label>Decay (ms):</label>
+            <input type="range" name="decay" min="0" max="2000" value="100">
+            <span name="decayVal">100</span>
+        </div>
+        <div>
+            <label>Sustain:</label>
+            <input type="range" name="sustain" min="0" max="1" step="0.1" value="0.5">
+            <span name="sustainVal">0.5</span>
+        </div>
+        <div>
+            <label>Release (ms):</label>
+            <input type="range" name="release" min="0" max="2000" value="500">
+            <span name="releaseVal">500</span>
+        </div>
+        <div>
+            <label>LFO Rate (Hz):</label>
+            <input type="range" name="lfoRate" min="0.1" max="20" step="0.1" value="1">
+            <span name="lfoRateVal">1</span>
+        </div>
+        <div>
+            <label>LFO Depth (Hz):</label>
+            <input type="range" name="lfoDepth" min="0" max="200" value="0">
+            <span name="lfoDepthVal">0</span>
+        </div>
+        <div>
+            <label>LFO Waveform:</label>
+            <select name="lfoWaveform">
+                <option value="sine">Sine</option>
+                <option value="square">Square</option>
+                <option value="sawtooth">Sawtooth</option>
+                <option value="triangle">Triangle</option>
+            </select>
+        </div>
+        <div>
+            <label>Detune Osc 2 (cents):</label>
+            <input type="range" name="detuneOsc1" min="-100" max="100" value="5" step="1">
+            <span name="detuneOsc1Val">5</span>
+        </div>
+        <div>
+            <label>Detune Osc 3 (cents):</label>
+            <input type="range" name="detuneOsc2" min="-100" max="100" value="-5" step="1">
+            <span name="detuneOsc2Val">-5</span>
+        </div>
+        <div>
+            <label>Master Volume:</label>
+            <input type="range" name="masterVolume" min="0" max="1" step="0.1" value="0.7">
+            <span name="masterVolumeVal">0.7</span>
+        </div>
+        <div>
+            <label>Delay Time (ms):</label>
+            <input type="range" name="delayTime" min="0" max="2000" value="500">
+            <span name="delayTimeVal">500</span>
+        </div>
+        <div>
+            <label>Delay Feedback:</label>
+            <input type="range" name="delayFeedback" min="0" max="0.9" step="0.05" value="0.3">
+            <span name="delayFeedbackVal">0.3</span>
+        </div>
+        <div>
+            <label>Limiter Threshold (dB):</label>
+            <input type="range" name="limiterThreshold" min="-60" max="0" step="1" value="-24">
+            <span name="limiterThresholdVal">-24</span>
+        </div>
+        <div>
+            <label>Limiter Knee (dB):</label>
+            <input type="range" name="limiterKnee" min="0" max="40" step="1" value="30">
+            <span name="limiterKneeVal">30</span>
+        </div>
+        <div>
+            <label>Limiter Ratio:</label>
+            <input type="range" name="limiterRatio" min="1" max="20" step="1" value="12">
+            <span name="limiterRatioVal">12</span>
+        </div>
+        <div>
+            <label>Limiter Attack (s):</label>
+            <input type="range" name="limiterAttack" min="0" max="0.1" step="0.001" value="0.003">
+            <span name="limiterAttackVal">0.003</span>
+        </div>
+        <div>
+            <label>Limiter Release (s):</label>
+            <input type="range" name="limiterRelease" min="0" max="1" step="0.01" value="0.25">
+            <span name="limiterReleaseVal">0.25</span>
+        </div>
+    </form>
+    <div class="keyboard">
+        <!-- Simple C major scale keys: A S D F G H J (white), W E T Y U (black) -->
+        <div class="key" data-note="261.63">C</div>
+        <div class="key black" data-note="277.18">C#</div>
+        <div class="key" data-note="293.66">D</div>
+        <div class="key black" data-note="311.13">D#</div>
+        <div class="key" data-note="329.63">E</div>
+        <div class="key" data-note="349.23">F</div>
+        <div class="key black" data-note="369.99">F#</div>
+        <div class="key" data-note="392.00">G</div>
+        <div class="key black" data-note="415.30">G#</div>
+        <div class="key" data-note="440.00">A</div>
+        <div class="key black" data-note="466.16">A#</div>
+        <div class="key" data-note="493.88">B</div>
+        <div class="key" data-note="523.25">C</div>
+    </div>
+
+    <script type="module">
+        import { A, E, O, Q } from 'https://aeoq.github.io/AEOQ.mjs';
+        import PointerInteraction from 'https://aeoq.github.io/pointer-interaction/script.js';
+        let Form = Object.fromEntries([...new FormData(document.forms[0])]);
+        class Synthesizer {
+            constructor() {
+                this.activeVoices = new Map(); // Key: frequency, Value: {oscs: [osc1, osc2, osc3], gain, lfoOsc, lfoGain}
+                this.maxVoices = 8;
+                // Connect chain: Master → Limiter → Delay → Feedback → Delay (loop) + Delay → Destination
+                this.node('Gain', {gain: .7}, 'masterGain')
+                    .connect(this.node('DynamicsCompressor', {
+                        threshold: -24,
+                        knee: 30,
+                        ratio: 12,
+                        attack: 0.003,
+                        release: 0.25
+                    }, 'limiter'))
+                    .connect(this.node('Delay', {
+                        delayTime: 0.5,
+                        connect: this.audioContext.destination
+                    }, 'delay'))
+                    .connect(this.node('Gain', {
+                        gain: 0.3,
+                        connect: this.delay
+                    }, 'feedbackGain'));
+                this.setupEventListeners();
+            }
+            audioContext = new AudioContext();
+            node(typeORnode, prop, label) {
+                const node = typeof typeORnode == 'string' ? this.audioContext[`create${typeORnode}`]() : typeORnode;
+                Object.entries(prop).forEach(([p, v]) => {
+                    if (p == 'envelop') {
+                        node.gain.cancelScheduledValues(v.now);
+                        v.R != null ?
+                            node.gain.setTargetAtTime(0, v.now, v.R / 10) :
+                            node.gain.setValueAtTime(0, v.now)
+                                .linearRampToValueAtTime(1, v.now + v.A)
+                                .linearRampToValueAtTime(v.S, v.now + v.A + v.D);
+                    } else
+                        typeof v == 'object' ?
+                            p == 'connect' ? node.connect(v) : Object.assign(node[p], v) :
+                            typeof v == 'number' ? node[p].value = v : node[p] = v;
+                });
+                return label ? this[label] = node : node;
+            }
+            setupEventListeners() {
+                document.forms[0].oninput = ev => {
+                    Form = Object.fromEntries([...new FormData(document.forms[0])]);
+                    ev.target.type == 'select-one' && this.updateWhilePlaying(ev.target.name, ev.target.value);
+                    if (ev.target.type == 'range') {
+                        const valSpan = ev.target.nextElementSibling;
+                        valSpan.textContent = ev.target.value;
+                        ['lfoRate', 'lfoDepth', 'masterVolume', 'delayTime', 'delayFeedback'].includes(ev.target.name)
+                            && this.updateWhilePlaying(ev.target.name, ev.target.value);
+                        ev.target.name === 'detuneOsc1' && this.updateDetune('osc1', ev.target.value);
+                        ev.target.name === 'detuneOsc2' && this.updateDetune('osc2', ev.target.value);
+                        ev.target.name.startsWith('limiter') &&
+                            (this.limiter[ev.target.name.replace('limiter', '').toLowerCase()].value = parseFloat(ev.target.value));
+                    }
+                }
+                document.addEventListener('keydown', (e) => this.onKeyDown(e));
+                document.addEventListener('keyup', (e) => this.onKeyUp(e));
+                document.querySelectorAll('.key').forEach(key => {
+                    key.addEventListener('mousedown', () => this.playNote(key.dataset.note));
+                    key.addEventListener('mouseup', () => this.stopNote(key.dataset.note));
+                });
+                document.addEventListener('click', () => {
+                    if (this.audioContext.state === 'suspended') {
+                        this.audioContext.resume();
+                    }
+                }, { once: true });
+            }
+            updateWhilePlaying(name, value) {
+                name == 'waveform' && this.activeVoices.forEach(voice => voice.oscs.forEach(osc => osc.type = value));
+                name == 'lfoWaveform' && this.activeVoices.forEach(voice => voice.lfoOsc && (voice.lfoOsc.type = value));
+                name == 'lfoRate' && this.activeVoices.forEach(voice => voice.lfoOsc && (voice.lfoOsc.frequency.value = parseFloat(value)));
+                name == 'lfoDepth' && this.activeVoices.forEach(voice => voice.lfoGain && (voice.lfoGain.gain.value = parseFloat(value)));
+                name == 'masterVolume' && (this.masterGain.gain.value = parseFloat(value));
+                name == 'delayTime' && (this.delay.delayTime.value = parseFloat(value) / 1000);
+                name == 'delayFeedback' && (this.feedbackGain.gain.value = parseFloat(value));
+            }
+
+            updateDetune(oscIndex, cents) {
+                const detuneValue = parseFloat(cents);
+                this.activeVoices.forEach(voice => {
+                    const baseFreq = parseFloat(voice.baseFreq);
+                    const osc = voice.oscs[parseInt(oscIndex === 'osc1' ? 1 : 2)]; // 0=main, 1=osc2, 2=osc3
+                    if (osc) {
+                        osc.frequency.value = baseFreq * Math.pow(2, detuneValue / 1200);
+                    }
+                });
+            }
+            playNote(frequency) {
+                const freq = parseFloat(frequency);
+                if (this.activeVoices.has(freq)) return; // Already playing
+
+                if (this.activeVoices.size >= this.maxVoices) {
+                    const oldestFreq = this.activeVoices.keys().next().value;
+                    this.stopNote(oldestFreq, true); // Force stop without release
+                }
+
+                const now = this.audioContext.currentTime;
+                const gain = this.node('Gain', {
+                    envelop: {
+                        now,
+                        A: parseFloat(Form.attack) / 1000,
+                        D: parseFloat(Form.decay) / 1000,
+                        S: parseFloat(Form.sustain)
+                    },
+                    connect: this.masterGain
+                });
+                const oscs = [0, 1, 2].map(i => this.node('Oscillator', {
+                    frequency: freq * Math.pow(2, parseFloat(Form[`detuneOsc${i}`] ?? 0) / 1200),
+                    type: Form.waveform,
+                    connect: this.node('Gain', { gain: 1 / 3, connect: gain })
+                }));
+                const lfoGain = this.node('Gain', {
+                    gain: parseFloat(Form.lfoDepth),
+                    connect: oscs[0].frequency
+                });
+                const lfoOsc = this.node('Oscillator', {
+                    frequency: parseFloat(Form.lfoRate),
+                    type: Form.lfoWaveform,
+                    connect: lfoGain
+                });
+                [lfoOsc, ...oscs].forEach(osc => osc.start(now));
+
+                this.activeVoices.set(freq, { oscs, gain, lfoOsc, lfoGain, baseFreq: freq });
+
+                document.querySelector(`[data-note="${frequency}"]`).classList.add('active');
+            }
+
+            stopNote(frequency, force = false) {
+                const freq = parseFloat(frequency);
+                const voice = this.activeVoices.get(freq);
+                if (!voice) return;
+
+                if (!force) {
+                    const release = parseFloat(Form.release) / 1000, now = this.audioContext.currentTime;
+                    this.node(voice.gain, {
+                        envelop: {now, R: release}
+                    });
+                    [voice.lfoOsc, ...voice.oscs].forEach(osc => osc.stop(now + release));
+                    setTimeout(() => {
+                        this.activeVoices.delete(freq);
+                        document.querySelector(`[data-note="${frequency}"]`).classList.remove('active');
+                    }, release * 1000);
+                } else {
+                    [voice.lfoOsc, ...voice.oscs].forEach(osc => osc.stop());
+                    this.activeVoices.delete(freq);
+                    document.querySelector(`[data-note="${frequency}"]`).classList.remove('active');
+                }
+            }
+
+            onKeyDown(e) {
+                const keyMap = {
+                    '65': '261.63', // A -> C4
+                    '83': '293.66', // S -> D4
+                    '68': '329.63', // D -> E4
+                    '70': '349.23', // F -> F4
+                    '71': '392.00', // G -> G4
+                    '72': '440.00', // H -> A4
+                    '74': '493.88', // J -> B4
+                    '87': '277.18', // W -> C#4
+                    '69': '311.13', // E -> D#4
+                    '84': '369.99', // T -> F#4
+                    '89': '415.30', // Y -> G#4
+                    '85': '466.16'  // U -> A#4
+                };
+
+                const note = keyMap[e.keyCode];
+                if (note) {
+                    e.preventDefault();
+                    this.playNote(note);
+                }
+            }
+
+            onKeyUp(e) {
+                const keyMap = {
+                    '65': '261.63', // A
+                    '83': '293.66', // S
+                    '68': '329.63', // D
+                    '70': '349.23', // F
+                    '71': '392.00', // G
+                    '72': '440.00', // H
+                    '74': '493.88', // J
+                    '87': '277.18', // W
+                    '69': '311.13', // E
+                    '84': '369.99', // T
+                    '89': '415.30', // Y
+                    '85': '466.16'  // U
+                };
+
+                const note = keyMap[e.keyCode];
+                if (note) {
+                    e.preventDefault();
+                    this.stopNote(note);
+                }
+            }
+        }
+
+        // Initialize synthesizer
+        const synth = new Synthesizer();
+    </script>
+</body>
+</html>
