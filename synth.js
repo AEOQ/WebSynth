@@ -1,9 +1,119 @@
 import {A,E,O,Q} from '//aeoq.github.io/AEOQ.mjs';
 import PointerInteraction from '//aeoq.github.io/pointer-interaction/script.js';
 
-const audioContext = new AudioContext();
-let Knobs = new O([...new FormData(Q('form'))].map(([n, v]) => [n, isNaN(parseFloat(v)) ? v : parseFloat(v)]));
-Q('form').oninput = ev => Knobs[ev.target.name] = isNaN(parseFloat(ev.target.value)) ? ev.target.value : parseFloat(ev.target.value);
+document.forms[0].oninput = ev => {
+    let node = ev.target.closest('fieldset')?.name;
+    if (!node || node == 'Envelope') return;
+    let changed = {[ev.target.name]: ev.target.value};
+    Notes.forEach(nodes => Node(nodes[node], changed));
+}
+const Controls = name => {
+    if (Array.isArray(name))
+        return new O(name.map(n => [n, Controls(n)]));
+    let el = document.forms[0][name];
+    return el?.tagName == 'FIELDSET' ?
+        new O([...el.elements ?? []].map(({name, value}) => [name, parseFloat(value) || value])) :
+        parseFloat(el?.value) || el?.value;
+}
+class Nodes {
+    constructor(all) {
+        Nodes.context();
+        new O(all).each(([type, options]) => this[type] = new Node(type, options));
+        return this;
+    }
+    connect (...ns) {
+        for (let i = 1; i <= ns.length; i++) {
+            if (i == ns.length) 
+                return this[ns[i - 1]].connect(Nodes.ctx.destination) && this;
+            if (Array.isArray(ns[i]))
+                ns[i].forEach(params => this[ns[i - 1]].connect(...params.map(p => typeof p == 'string' ? this[p] : p)));
+            else if (Array.isArray(ns[i - 1]))
+                this[ns[i - 1][0][0]].connect(this[ns[i]]);
+            else 
+                this[ns[i - 1]].connect(this[ns[i]]);
+        }
+    }
+    start () {
+        this.Oscillator.start();
+        Node(this.Gain, {envelope: {now: Nodes.ctx.currentTime, ...Controls(['A','D','S'])}});
+        Visualizer(this.Analyser, Q('[name=visualize]').checked ? 'spectrum' : 'wave');
+        return this;
+    }
+    stop () {
+        Node(this.Gain, {envelope: {now: Nodes.ctx.currentTime, R: Controls('R')}});
+        this.Oscillator.stop(Nodes.ctx.currentTime + 5);
+        return this;
+    }
+    static context = () => (!Nodes.ctx || Nodes.ctx.state == 'closed') && (Nodes.ctx = new AudioContext());
+}
+const Node = function(typeORnode, options) {
+    options = {
+        ...options ?? {},
+        ...Controls(typeof typeORnode == 'string' ? typeORnode : typeORnode.constructor.name.replace('Node', ''))
+    };
+    if (typeof typeORnode == 'string') 
+        return new window[`${typeORnode}Node`](Nodes.ctx, options);
+
+    Object.entries(options).forEach(([p, v]) => {
+        if (p == 'envelope') {
+            typeORnode.gain.cancelScheduledValues(v.now);
+            v.R != null ?
+                typeORnode.gain.exponentialRampToValueAtTime(0.0001, v.now + v.R) :
+                typeORnode.gain.setValueAtTime(0, v.now)
+                    .linearRampToValueAtTime(1, v.now + v.A)
+                    .exponentialRampToValueAtTime(v.S, v.now + v.A + v.D);
+        } else
+            typeof v == 'object' ? Object.assign(node[p], v) :
+            typeof v == 'number' ? typeORnode[p].value = v : typeORnode[p] = v;
+    });
+    return typeORnode;
+}
+
+const Visualizer = (analyser, type) => {
+    const canvas = Q('canvas');
+    Object.assign(Visualizer, {
+        width: canvas.width, height: canvas.height,
+        ctx: canvas.getContext('2d')
+    });
+    if (type) {
+        Visualizer.ctx.clearRect(0, 0, Visualizer.width, Visualizer.height);
+        Visualizer[type](analyser);
+    }
+}
+Object.assign(Visualizer, {
+    wave: function(analyser, data) {
+        data ??= new Uint8Array(analyser.fftSize = 2048);
+        requestAnimationFrame(() => this.wave(analyser, data));
+
+        analyser.getByteTimeDomainData(data);
+        this.ctx.fillStyle = E(Q('html')).get('--bg');
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = "white";
+        this.ctx.beginPath();
+        data.forEach((d, i) => 
+            this.ctx[i ? 'lineTo' : 'moveTo'](i * this.width / data.length, d / 128 * this.height / 2)
+        );
+        this.ctx.lineTo(this.width, this.height / 2);
+        this.ctx.stroke();
+    },
+    spectrum: function(analyser, data) {
+        analyser.fftSize = 256;
+        data ??= new Uint8Array(analyser.frequencyBinCount);
+        requestAnimationFrame(() => this.spectrum(analyser, data));
+
+        analyser.getByteFrequencyData(data);
+        this.ctx.fillStyle = E(Q('html')).get('--bg');
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        const barWidth = (this.width / data.length) * 2.5;
+        data.forEach((d, i) => {
+            this.ctx.fillStyle = `hsl(${d + 100},80%,50%)`;
+            this.ctx.fillRect(i * (barWidth + 1), this.height - d / 2, barWidth, d / 2);
+        });
+    }
+});
 
 class Keyboard {
     constructor() {
@@ -20,14 +130,12 @@ class Keyboard {
     distanceToMid = C => Math.abs(C.offsetLeft + C.clientWidth/2 - this.KB.scrollLeft - innerWidth/2);
     init() {
         for (let i = 0; i < 60; i++) {
-            let button = E('button', {dataset: {
-                frequency: 1976 / Math.pow(2, i/12),
-                pitch: `${this.pitches[i % this.pitches.length]}${6 - Math.floor(i / this.pitches.length)}`
-            }}); //B6
-            button.onpointerdown = ev => {
-                this.press(button);
-                button.onpointerup = button.onpointercancel = button.onpointermove = ev => this.release(button);
-            }
+            let button = E('button', {
+                value: 1976 / Math.pow(2, i/12), 
+                dataset: {
+                    pitch: `${this.pitches[i % this.pitches.length]}${6 - Math.floor(i / this.pitches.length)}`
+                }
+            }); //B6
             this.KB.prepend(button);
         }
         PointerInteraction.events({'#keyboard': {drag: PI => PI.drag.to.scroll({x: true, y: false})}});
@@ -51,104 +159,87 @@ class Keyboard {
                 key = key.previousElementSibling; i--;
             }
         })();
-        onkeydown = ev => !ev.repeat && this.press(ev.key.toUpperCase());
-        onkeyup = ev => this.release(ev.key.toUpperCase());
+        Keyboard.playEvents.forEach(type => addEventListener(type, ev => this.play(ev))); //this
     }
-    press(key) {
-        const button = key.tagName == 'BUTTON' ? key : KB.keyMap[key];
-        if (!button) return;
-    
-        const envelope = new Effect('gain', [
-            [audioContext.currentTime, 0],
-            [Knobs['envelope-a']/100*Knobs['time-scale'], Knobs.volume/100],
-            [Knobs['envelope-d']/100*Knobs['time-scale'], Knobs['envelope-s']/100*Knobs.volume/100],
-        ]).node;
-        const delay = new Effect('delay', Knobs['delay-time']).node;
-        const feedback = new Effect('gain', Knobs['delay-feedback']/100).node;
-     
-        envelope.connect(audioContext.destination); 
-        envelope.connect(feedback).connect(delay).connect(audioContext.destination);
-        delay.connect(feedback);
-    
-        const osc = new Oscillators(Knobs.waveform.toLowerCase(), button.dataset.frequency, Knobs['unison-detune-1'], Knobs['unison-detune-2'], envelope);
-        new Oscillator('LFO', Knobs['vibrato-speed'], Knobs['vibrato-amount']).connect(osc.osc[0].oscillator.frequency);
-        new Oscillator('LFO', 10, 2).connect(envelope);
-        
-        osc.start();
-        Oscillators.map.set(button.dataset.pitch, osc);
+    play(ev) {
+        if (!Keyboard.isKey(ev)) return;
+        let hz = Keyboard.getHz(ev);
+        hz && Notes.set(hz, new Note(hz));
+        Keyboard.stopEvents.forEach(type => addEventListener(type, this.stop));
+        Keyboard.clearEvents.forEach(type => addEventListener(type, this.clear));
     }
-    release(key) {
-        const button = key.tagName == 'BUTTON' ? key : KB.keyMap[key];
-        if (!button) return;
-        button.onpointerup = button.onpointercancel = button.onpointermove = null;
-          
-        Oscillators.map.get(button.dataset.pitch).release(audioContext.currentTime, Knobs['envelope-r']/100*Knobs['time-scale'])
+    stop(ev) {
+        if (!Keyboard.isKey(ev)) return;
+        let hz = Keyboard.getHz(ev);
+        Notes.get(hz)?.stop();
+        Notes.delete(hz);
+        Notes.size || Keyboard.stopEvents.forEach(type => removeEventListener(type, this.stop));
     }
+    clear() {
+        Notes.forEach(note => note.stop());
+        Notes = new Map();
+        Keyboard.clearEvents.forEach(type => removeEventListener(type, this.clear));
+    }
+    static playEvents = ['pointerdown', 'keydown'];
+    static stopEvents = ['pointerup', 'pointercancel', 'pointerleave', 'pointerout', 'keyup'];
+    static clearEvents = ['blur']
+    static isKey = ev => !ev.repeat && (ev.target.matches('#keyboard button') || ev.key && KB.keyMap[ev.key.toUpperCase()]);
+    static getHz = ev => ev.type.includes('key') ? KB.keyMap[ev.key.toUpperCase()]?.value : ev.target.value;
 }
 let KB = new Keyboard();
+let Notes = new Map();
+class Note {
+    constructor(hz) {
+        if (!hz) return;
+        Notes.get(hz)?.stop();
+        Notes.delete(hz);
 
-class Effect {
-    constructor(type, value) {
-        this.node = audioContext[`create${type.charAt(0).toUpperCase() + type.slice(1)}`]();
-        typeof value == 'object' ? this.automate(type, value) : this.node[Effect.param[type]].value = value;
-    }
-    automate(type, schedule) {
-        this.node[Effect.param[type]]
-            .setValueAtTime(schedule[0][1], schedule[0][0])
-            .linearRampToValueAtTime(schedule[1][1], schedule[0][0] + schedule[1][0])
-            .setTargetAtTime(schedule[2][1], schedule[0][0] + schedule[1][0], schedule[2][0]);
-    }
-    static param = {
-        delay: 'delayTime',
-        gain: 'gain'
-    }
-}
-class Oscillator {
-    constructor(type, frequency, detune, envelope) {
-        this.oscillator = audioContext.createOscillator();
-        if (type == 'LFO') {
-            this.gain = audioContext.createGain();
-            this.gain.gain.setValueAtTime(detune, 0);
-
-            this.oscillator.frequency.setValueAtTime(frequency, 0);
-            this.oscillator.start(0);
-            this.oscillator.connect(this.gain);
-            return;
+        Nodes.context();
+        const impulseLength = Math.floor(Nodes.ctx.sampleRate * 0.05); // 50ms
+        const impulse = Nodes.ctx.createBuffer(2, impulseLength, Nodes.ctx.sampleRate);
+        for (let channel = 0; channel < 2; channel++) {
+            const sampleData = impulse.getChannelData(channel);
+            for (let i = 0; i < impulseLength; i++) {
+                sampleData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / impulseLength, 2);
+            }
         }
-        this.oscillator.connect(envelope);
-        if (type == "custom") {
-            let sineTerms = new Float32Array([0, 0, 1, 0, 1]);
-            let cosineTerms = new Float32Array(sineTerms.length);
-            this.oscillator.setPeriodicWave(audioContext.createPeriodicWave(cosineTerms, sineTerms));
-        } 
-        else
-            this.oscillator.type = type;
-        this.oscillator.frequency.value = frequency;
-        this.oscillator.detune.value = detune;
+        return new Nodes({
+            Oscillator: {frequency: hz},
+            Gain: {gain: 0},
+            BiquadFilter: {},
+            IIRFilter: { 
+                feedforward: new Float32Array([1]), 
+                feedback: new Float32Array([-1.779, 0.817])
+            },
+            WaveShaper: { 
+                curve: new Float32Array([...Array(101)].map((_, i) => Math.tanh(2 * (i / (101 - 1) * 2 - 1)))) 
+            },
+            DynamicsCompressor: {},
+            Delay: {},
+            Convolver: {buffer: impulse},
+            ChannelSplitter: { numberOfOutputs: 2 },
+            ChannelMerger: { numberOfInputs: 2 },
+            Panner: {
+                panningModel: 'HRTF',
+                distanceModel: 'inverse',
+                refDistance: 1,
+                maxDistance: 10000,
+                rolloffFactor: 1,
+                coneInnerAngle: 360,
+                coneOuterAngle: 0,
+                coneOuterGain: 0,
+                positionX: 1,
+                positionY: 0,
+                positionZ: -1
+            },
+            StereoPanner: {},
+            Analyser: {}
+        }).connect(
+            'Oscillator', 'Gain', 
+            'BiquadFilter', 'IIRFilter', 'WaveShaper', 'DynamicsCompressor', 
+            'Delay', /*'Convolver',*/ 'ChannelSplitter', [['ChannelMerger', 0, 0],['ChannelMerger', 1, 1]], 
+            /*'Panner',*/ 'StereoPanner', 'Analyser'
+// Connect chain: osc → gain → biquad → iir → waveshaper → compressor → delay → convolver → splitter → merger → panner → stereoPanner → destination
+        ).start();
     }
-    connect(what) {this.gain.connect(what);}
-    start() {this.oscillator.start();}
-    stop(t) {this.oscillator.stop(t);}
 }
- 
-class Oscillators {
-    constructor(type, frequency, detune1, detune2, envelope) {
-        this.osc = [new Oscillator(type, frequency, 0, this.gainNode = envelope)];
-        detune1 != 0 && this.osc.push(new Oscillator(type, frequency, detune1, envelope));
-        detune2 != 0 && this.osc.push(new Oscillator(type, frequency, detune2, envelope));
-    }
-    start() {
-        this.osc.forEach(o => o.start());
-    }
-    stop(t) {
-        this.osc.forEach(o => o.stop(t));
-    }
-    release(t0, t) {
-        this.gainNode.gain.cancelScheduledValues(t0)
-            .setValueAtTime(this.gainNode.gain.value, t0)
-            .linearRampToValueAtTime(0, t0 + t);
-        this.stop(t0 + t);
-    }
-    static map = new Map();
-}
- 
