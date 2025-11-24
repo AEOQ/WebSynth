@@ -138,7 +138,7 @@ class Keyboard {
             }); //B6
             this.KB.prepend(button);
         }
-        PointerInteraction.events({'#keyboard': {drag: PI => PI.drag.to.scroll({x: true, y: false})}});
+        PointerInteraction.events({'#keyboard': {scroll: {x: true}}});
     }
     events() {
         (this.KB.onscroll = () => {
