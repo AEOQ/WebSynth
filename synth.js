@@ -1,6 +1,7 @@
 import {A,E,O,Q} from '//aeoq.github.io/AEOQ.mjs';
 import PointerInteraction from '//aeoq.github.io/pointer-interaction/script.js';
 
+addEventListener('contextmenu', ev => ev.preventDefault());
 document.forms[0].oninput = ev => {
     let node = ev.target.closest('fieldset')?.name;
     if (!node || node == 'Envelope') return;
