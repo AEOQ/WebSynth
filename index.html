@@ -7,14 +7,6 @@
     <link rel="stylesheet" href="synth.css">
     <script src="synth.js" type="module"></script>
     <script src="//aeoq.github.io/drag-knob/script.js" type="module"></script>
-    <style>
-        continuous-knob:not([title])::before {
-            content: attr(name);
-        }
-        continuous-knob::before {
-            text-transform: capitalize;
-        }
-    </style>
 </head>
 <body>
     <aside id="keyboard"></aside>
@@ -54,8 +46,13 @@
             <legend>Stereo Panner</legend>
             <continuous-knob name="pan" min="-1" max="1" step="0.1" value="0"></continuous-knob>
         </fieldset>
-        <input type="checkbox" name="visualize">Spectrum
+        <fieldset>
+            <legend>Visualizer</legend>
+            <label><input type="radio" name="visualize" value="off" checked>Off</label>
+            <label><input type="radio" name="visualize" value="wave">Wave</label>
+            <label><input type="radio" name="visualize" value="spectrum">Spectrum</label>
+        </fieldset>
     </form>
-    <canvas width="800" height="400"></canvas>
+    <canvas width="800" height="400" hidden></canvas>
 </body>
 </html>

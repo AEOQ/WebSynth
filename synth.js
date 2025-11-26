@@ -1,8 +1,13 @@
-import {A,E,O,Q} from '//aeoq.github.io/AEOQ.mjs';
-import PointerInteraction from '//aeoq.github.io/pointer-interaction/script.js';
+import {A,E,O,Q} from 'https://aeoq.github.io/AEOQ.mjs';
+import PointerInteraction from 'https://aeoq.github.io/pointer-interaction/script.js';
 
+let Notes = new Map();
 addEventListener('contextmenu', ev => ev.preventDefault());
 document.forms[0].oninput = ev => {
+    if (ev.target.name == 'visualize' && ev.target.value == 'off') {
+        cancelAnimationFrame(Visualizer.timer);
+        return Q('canvas').hidden = true;
+    }
     let node = ev.target.closest('fieldset')?.name;
     if (!node || node == 'Envelope') return;
     let changed = {[ev.target.name]: ev.target.value};
@@ -38,7 +43,7 @@ class Nodes {
     start () {
         this.Oscillator.start();
         Node(this.Gain, {envelope: {now: Nodes.ctx.currentTime, ...Controls.get(['A','D','S'])}});
-        Visualizer(this.Analyser, Q('[name=visualize]').checked ? 'spectrum' : 'wave');
+        Visualizer(this.Analyser);
         return this;
     }
     stop () {
@@ -70,77 +75,6 @@ const Node = function(typeORnode, options) {
     });
     return typeORnode;
 }
-
-class Keyboard {
-    constructor() {
-        this.KB = Q('#keyboard');
-        this.setup();
-        this.events();
-    }
-    pitches = ['B','B♭','A','A♭','G','G♭','F','E','E♭','D','D♭','C']
-    keys = [
-        ['Y','7','U','8','I','O','0','P','-','[','=',']'],
-        ['Z','S','X','D','C','V','G','B','H','N','J','M'],
-    ]
-    keyMap = {}
-    setup() {
-        for (let i = 0; i < 60; i++) {
-            this.KB.prepend(E('button', {
-                id: `${this.pitches[i % this.pitches.length]}${6 - Math.floor(i / this.pitches.length)}`,
-                value: 1976 / Math.pow(2, i/12)
-            })); //B6
-        }
-    }
-    events() {
-        PointerInteraction.events({'#keyboard': {scroll: {x: true}}});
-        const distanceToMid = C => Math.abs(C.offsetLeft + C.clientWidth/2 - this.KB.scrollLeft - innerWidth/2);
-        (this.KB.onscroll = () => {
-            let keyC = this.KB.Q('[id^=C]').reduce((min, c) => distanceToMid(c) < distanceToMid(min) ? c : min);
-            if (keyC.dataset.key == 'Y') return;
-
-            this.KB.Q('[data-key]', key => key.removeAttribute('data-key'));
-            let key = keyC, i = 0;
-            while (this.keys[0][i]) {
-                key.dataset.key = this.keys[0][i];
-                this.keyMap[this.keys[0][i]] = key;
-                key = key.nextElementSibling; i++;
-            }
-            key = keyC.previousElementSibling, i = 11;
-            while (this.keys[1][i]) {
-                key.dataset.key = this.keys[1][i];
-                this.keyMap[this.keys[1][i]] = key;
-                key = key.previousElementSibling; i--;
-            }
-        })();
-        this.playEvents.forEach(type => addEventListener(type, ev => this.play(ev))); //this
-    }
-    play(ev) {
-        if (!this.isKey(ev)) return;
-        let hz = this.getHz(ev);
-        hz && Notes.set(hz, new Note(hz));
-        this.stopEvents.forEach(type => addEventListener(type, ev => this.stop(ev)));
-        this.clearEvents.forEach(type => addEventListener(type, this.clear));
-    }
-    stop(ev) {
-        if (!this.isKey(ev)) return;
-        let hz = this.getHz(ev);
-        Notes.get(hz)?.stop();
-        Notes.delete(hz);
-        Notes.size || this.stopEvents.forEach(type => removeEventListener(type, this.stop));
-    }
-    clear() {
-        Notes.forEach(note => note.stop());
-        Notes = new Map();
-        this.clearEvents.forEach(type => removeEventListener(type, this.clear));
-    }
-    playEvents = ['pointerdown', 'keydown'];
-    stopEvents = ['pointerup', 'pointercancel', 'pointerleave', 'pointerout', 'keyup'];
-    clearEvents = ['blur']
-    isKey = ev => !ev.repeat && (ev.target.matches('#keyboard button') || ev.key && KB.keyMap[ev.key.toUpperCase()]);
-    getHz = ev => ev.type.includes('key') ? KB.keyMap[ev.key.toUpperCase()]?.value : ev.target.value;
-}
-let KB = new Keyboard();
-let Notes = new Map();
 class Note {
     constructor(hz) {
         if (!hz) return;
@@ -192,27 +126,99 @@ class Note {
             'BiquadFilter', 'IIRFilter', 'WaveShaper', 'DynamicsCompressor', 
             'Delay', /*'Convolver',*/ 'ChannelSplitter', [['ChannelMerger', 0, 0],['ChannelMerger', 1, 1]], 
             /*'Panner',*/ 'StereoPanner', 'Analyser'
-// Connect chain: osc → gain → biquad → iir → waveshaper → compressor → delay → convolver → splitter → merger → panner → stereoPanner → destination
         ).start();
     }
 }
+class Keyboard {
+    constructor() {
+        this.KB = Q('#keyboard');
+        this.setup();
+        this.events();
+    }
+    pitches = ['B','B♭','A','A♭','G','G♭','F','E','E♭','D','D♭','C']
+    keys = [
+        ['Y','7','U','8','I','O','0','P','-','[','=',']'],
+        ['Z','S','X','D','C','V','G','B','H','N','J','M'],
+    ]
+    keyMap = {}
+    setup() {
+        for (let i = 0; i < 60; i++) {
+            this.KB.prepend(E('button', {
+                id: `${this.pitches[i % this.pitches.length]}${6 - Math.floor(i / this.pitches.length)}`,
+                value: 1976 / Math.pow(2, i/12)
+            })); //B6
+        }
+    }
+    events() {
+        PointerInteraction.events({'#keyboard': {scroll: {x: true}}});
+        const distanceToMid = C => innerWidth > innerHeight ? 
+            Math.abs(C.offsetLeft + C.clientWidth/2 - this.KB.scrollLeft - innerWidth/2) :
+            Math.abs(C.offsetTop + C.clientHeight/2 - this.KB.scrollTop - innerHeight/2);
+        (this.KB.onscroll = () => {
+            let keyC = this.KB.Q('[id^=C]').reduce((min, c) => distanceToMid(c) < distanceToMid(min) ? c : min);
+            if (keyC.dataset.key == 'Y') return;
 
-const Visualizer = (analyser, type) => {
+            this.KB.Q('[data-key]', key => key.removeAttribute('data-key'));
+            let key = keyC, i = 0;
+            while (key && this.keys[0][i]) {
+                key.dataset.key = this.keys[0][i];
+                this.keyMap[this.keys[0][i]] = key;
+                key = key.nextElementSibling; i++;
+            }
+            key = keyC.previousElementSibling, i = 11;
+            while (key && this.keys[1][i]) {
+                key.dataset.key = this.keys[1][i];
+                this.keyMap[this.keys[1][i]] = key;
+                key = key.previousElementSibling; i--;
+            }
+        })();
+        this.playEvents.forEach(type => addEventListener(type, ev => this.play(ev))); //this
+    }
+    play(ev) {
+        if (!this.isKey(ev)) return;
+        let hz = this.getHz(ev);
+        hz && Notes.set(hz, new Note(hz));
+        this.stopEvents.forEach(type => addEventListener(type, ev => this.stop(ev)));
+        this.clearEvents.forEach(type => addEventListener(type, ev => this.clear(ev)));
+    }
+    stop(ev) {
+        if (!this.isKey(ev)) return;
+        let hz = this.getHz(ev);
+        Notes.get(hz)?.stop();
+        Notes.delete(hz);
+        Notes.size || this.stopEvents.forEach(type => removeEventListener(type, this.stop));
+    }
+    clear() {
+        Notes.forEach(note => note.stop());
+        Notes = new Map();
+        this.clearEvents.forEach(type => removeEventListener(type, this.clear));
+    }
+    playEvents = ['pointerdown', 'keydown'];
+    stopEvents = ['pointerup', 'pointercancel', 'pointerleave', 'pointerout', 'keyup'];
+    clearEvents = ['blur']
+    isKey = ev => !ev.repeat && (ev.target.matches('#keyboard button') || ev.key && KB.keyMap[ev.key.toUpperCase()]);
+    getHz = ev => ev.type.includes('key') ? KB.keyMap[ev.key.toUpperCase()]?.value : ev.target.value;
+}
+let KB = new Keyboard();
+
+const Visualizer = (analyser, type = Q('[name=visualize]:checked').value) => {
     const canvas = Q('canvas');
     Object.assign(Visualizer, {
         width: canvas.width, height: canvas.height,
         ctx: canvas.getContext('2d')
     });
-    if (type) {
+    PointerInteraction.events({canvas: {drag: PI => PI.drag.to.translate(), revert: false}});
+    if (type != 'off') {
         Visualizer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        Visualizer[type](analyser);
         Visualizer.ctx.lineWidth = 2;
         Visualizer.ctx.strokeStyle = "white";
+        Visualizer[type](analyser);
+        canvas.hidden = false;
     }
 }
 Object.assign(Visualizer, {
     clear: function() {
-        this.ctx.fillStyle = E(Q('html')).get('--bg');
+        this.ctx.fillStyle = 'black';
         this.ctx.fillRect(0, 0, this.width, this.height);
     },
     wave: function(analyser, data) {

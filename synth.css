@@ -14,20 +14,22 @@ body {
     margin:0 0 11em 0;
 }
 form {
-    display:flex; flex-wrap:wrap;
-
     fieldset {
-        padding:.5em .5em 1em .5em;
-
-        continuous-knob {
-            margin:0 .1em;
-        }
+        display: inline-flex; flex-wrap: wrap; justify-content: space-evenly;
+        gap: 1em .5em;
+        padding:.5em .5em 1em .5em; margin: .5em 0;
+    }
+    continuous-knob:not([title])::before {
+        content: attr(name);
+    }
+    continuous-knob::before {
+        text-transform: capitalize;
     }
 }
 aside {
     position:fixed !important; left:0; bottom:0;
     white-space:nowrap; overflow-y:hidden;
-    block-size:10em; inline-size:100%;
+    block-size:9.5em; inline-size:100%;
     z-index:1;
 
     &::-webkit-scrollbar {
@@ -72,11 +74,15 @@ aside {
         }
     }
 }
-spin-knob.time-scale data {
-    border-bottom:.1em solid;
-}
+
 @media (orientation:portrait) {
     form {
         margin-left:10em;
     }
+}
+
+canvas {
+    position: fixed !important; right: 0; bottom: 0;
+    width: min(20em, 100%);
+    z-index: 9;
 }
