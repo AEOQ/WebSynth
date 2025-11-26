@@ -38,8 +38,6 @@ aside {
     &::-webkit-scrollbar-thumb {
         background: #ffffff66;
     }
-    &.playing {touch-action: none;}
-
     button {
         block-size: 100%; inline-size: 3em;
         background: white; color: black; 

@@ -176,7 +176,6 @@ class Keyboard {
     }
     play(ev) {
         if (!this.isKey(ev)) return;
-        ev.type.includes('pointer') && this.KB.classList.add('playing');
         let hz = this.getHz(ev);
         hz && Notes.set(hz, new Note(hz));
         this.stopEvents.forEach(type => addEventListener(type, ev => this.stop(ev)));
@@ -184,7 +183,6 @@ class Keyboard {
     }
     stop(ev) {
         if (!this.isKey(ev)) return;
-        this.KB.classList.remove('playing');
         let hz = this.getHz(ev);
         Notes.get(hz)?.stop();
         Notes.delete(hz);
