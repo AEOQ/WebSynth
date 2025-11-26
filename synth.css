@@ -9,6 +9,7 @@ html {
     color: white;
     font-family: sans-serif;
     --light: hsl(170, 80%, 60%);
+    user-select: none;
 }
 body {
     margin: 0 0 11em 0;
@@ -31,12 +32,16 @@ aside {
     white-space: nowrap; overflow-y: hidden;
     block-size: 9.5em; inline-size: 100%;
     z-index: 1;
+    touch-action: none;
 
     &::-webkit-scrollbar {
-        display: none;
+        width: 1em;
+    }
+    &::-webkit-scrollbar-track {
+        background: #f1f1f1;
     }
     &::-webkit-scrollbar-thumb {
-        background: #ffffff66;
+        background: #888;
     }
     button {
         block-size: 100%; inline-size: 3em;
