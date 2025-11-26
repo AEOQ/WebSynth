@@ -9,7 +9,6 @@ html {
     color: white;
     font-family: sans-serif;
     --light: hsl(170, 80%, 60%);
-    user-select: none;
 }
 body {
     margin: 0 0 11em 0;
@@ -32,22 +31,19 @@ aside {
     white-space: nowrap; overflow-y: hidden;
     block-size: 9.5em; inline-size: 100%;
     z-index: 1;
-    touch-action: none;
 
     &::-webkit-scrollbar {
-        width: 1em;
-    }
-    &::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        display: none;
     }
     &::-webkit-scrollbar-thumb {
-        background: #888;
+        background: #ffffff66;
     }
     button {
         block-size: 100%; inline-size: 3em;
         background: white; color: black; 
         border: solid black; border-width: 0 .1em;
         position: relative;
+        touch-action: none;
 
         &:hover {background: #ddd;}
         &:is(:nth-child(12n+2),:nth-child(12n+4),:nth-child(12n+7),:nth-child(12n+9),:nth-child(12n+11)) {
